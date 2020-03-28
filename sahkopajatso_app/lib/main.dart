@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
@@ -8,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'BLE test',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -19,7 +22,7 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.deepPurple,
       ),
       home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -39,12 +42,175 @@ class MyHomePage extends StatefulWidget {
   // always marked "final".
 
   final String title;
+  final FlutterBlue flutterBlue = FlutterBlue.instance; //for using Bluetooth LE
+  final List<BluetoothDevice> devicesList =
+      new List<BluetoothDevice>(); //list of available BLE devices
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  //add new devices to the list
+  _addBLEDevice(final BluetoothDevice device) {
+    if (!widget.devicesList.contains(device)) {
+      setState(() {
+        widget.devicesList.add(device);
+      });
+    }
+  }
+
+  //we will connect to one of them
+  BluetoothDevice _connectedDevice;
+  List<BluetoothService> _services;
+
+  //function that selects a device and stops scanning
+  _setDevice(BluetoothDevice device) async {
+    widget.flutterBlue.stopScan();
+    try {
+      await device.connect();
+    } catch (e) {
+      if (e.code != 'already_connected') {
+        throw e;
+      }
+    } finally {
+      //get the services of the connected device
+      _services = await device.discoverServices();
+    }
+    setState(() {
+      _connectedDevice = device;
+    });
+  }
+
+  //scan for devices
+  @override
+  void initState() {
+    super.initState();
+
+    //add the devices that are already connected
+    widget.flutterBlue.connectedDevices
+        .asStream()
+        .listen((List<BluetoothDevice> devices) {
+      for (BluetoothDevice device in devices) {
+        _addBLEDevice(device);
+      }
+    });
+
+    //scan for new devices
+    widget.flutterBlue.scanResults.listen((List<ScanResult> results) {
+      for (ScanResult result in results) {
+        _addBLEDevice(result.device);
+      }
+    });
+    widget.flutterBlue.startScan();
+  }
+
+  //builds a list view of available devices
+  ListView _buildDevicesList() {
+    List<Container> rows = widget.devicesList
+        .map((device) => Container(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: <Widget>[
+                        Text(device.name == "" ? "???" : device.name),
+                        Text(device.id.toString())
+                      ],
+                    ),
+                  ),
+                  FlatButton(
+                    onPressed: () => _setDevice(device),
+                    child: Text(
+                      'connect',
+                      style: Theme.of(context).accentTextTheme.button,
+                    ),
+                    color: Theme.of(context).accentColor,
+                  ),
+                ],
+              ),
+              height: 50,
+            ))
+        .toList();
+
+    return ListView(
+      padding: EdgeInsets.all(8),
+      children: <Widget>[...rows],
+    );
+  }
+
+  //a view that shows info on a connected device
+  Column _buildDeviceView() {
+    List<Container> rows = _services
+        .map((service) => Container(
+              height: 50,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: <Widget>[
+                        Text(service.uuid.toString()),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ))
+        .toList();
+
+    //builds a view that lets user interact with the connected devicew and shows the available bluetooth services
+    return Column(
+      children: [
+        Container(
+          height: 50,
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Center(
+                  child: Text(_connectedDevice.name == "" //adds a placeholder for empty names
+                      ? "???"
+                      : _connectedDevice.name),
+                ),
+              ),
+              FlatButton(
+                onPressed: () async{await _services.last.characteristics.first.write(utf8.encode('1'));}, //sends the string '1' to the BLE-module when the button is pressed
+                child: Text(
+                  "ON",
+                  style: Theme.of(context).accentTextTheme.button,
+                ),
+                color: Theme.of(context).accentColor,
+              ),
+              Container(width:8),
+              FlatButton(
+                onPressed: () async{await _services.last.characteristics.first.write(utf8.encode('0'));}, //sends the string '0' to the BLE-module when the button is pressed
+                child: Text(
+                  "OFF",
+                  style: Theme.of(context).accentTextTheme.button,
+                ),
+                color: Theme.of(context).accentColor,
+                
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.all(8),
+            children: <Widget>[...rows],
+          ),
+        ),
+      ],
+    );
+  }
+
+  //show a device view if one is connected
+  Widget _buildBody() {
+    if (_connectedDevice != null) {
+      return _buildDeviceView();
+    }
+    return _buildDevicesList();
+  }
+
   int _counter = 0;
 
   void _incrementCounter() {
@@ -75,31 +241,35 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            // Column is also a layout widget. It takes a list of children and
+            // arranges them vertically. By default, it sizes itself to fit its
+            // children horizontally, and tries to be as tall as its parent.
+            //
+            // Invoke "debug painting" (press "p" in the console, choose the
+            // "Toggle Debug Paint" action from the Flutter Inspector in Android
+            // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
+            // to see the wireframe for each widget.
+            //
+            // Column has various properties to control how it sizes itself and
+            // how it positions its children. Here we use mainAxisAlignment to
+            // center the children vertically; the main axis here is the vertical
+            // axis because Columns are vertical (the cross axis would be
+            // horizontal).
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'You have pushed the button this many times:',
+              ),
+              Text(
+                '$_counter',
+                style: Theme.of(context).textTheme.display1,
+              ),
+              Expanded(child: _buildBody()),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
