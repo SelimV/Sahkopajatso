@@ -3,16 +3,21 @@
         {
             "name": "Win32",
             "includePath": [
-                "E:\\programs\\Arduino\\tools\\**",
-                "E:\\programs\\Arduino\\hardware\\arduino\\avr\\**"
+                "D:\\program files\\Arduino\\hardware\\arduino\\avr\\**",
+                "D:\\program files\\Arduino\\tools\\**",
+                "D:\\program files\\Arduino\\hardware\\tools\\avr\\**"
             ],
             "forcedInclude": [
-                "E:\\programs\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
+                "E:\\programs\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h",
+                "D:\\program files\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
             ],
             "intelliSenseMode": "msvc-x64",
-            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.23.28105/bin/Hostx64/x64/cl.exe",
+            "compilerPath": "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.23.28105/bin/Hostx64/x64/cl.exe\"",
             "cStandard": "c11",
-            "cppStandard": "c++17"
+            "cppStandard": "c++17",
+            "defines": [
+                "USBCON"
+            ]
         }
     ],
     "version": 4
