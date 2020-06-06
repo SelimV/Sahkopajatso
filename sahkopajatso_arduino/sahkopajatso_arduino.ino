@@ -1,15 +1,8 @@
 #include <stdio.h>             //for constructing strings
-#include <FastLED.h>           //Programmable RGB leds can be daisy chained and addressed individually from the same pin
-#define LED_PIN 5              //Pin for the RGB leds. Needs to be PWM (I think) for sending encoded commands for the leds
-#define NUM_LEDS 1             //Nuber of leds in the chain
-#define BRIGHTNESS 64          //brighness level for the programmable leds
-#define LED_TYPE WS2811        //Different types of programmable leds might have different controllers, that is, chips that decode the chained signal
-#define COLOR_ORDER GRB        //Some leds just have to be different...
-CRGB leds[NUM_LEDS];           //an array for the addressable led chain
-#define UPDATES_PER_SECOND 100 //for leds
 
-#define NUM_MEASURES 3                        //number of coin detectors
-int measurePins[NUM_MEASURES] = {A0, A1, A2}; //remember to update if you change the number of measures or pin order
+
+#define NUM_MEASURES 4                        //number of coin detectors
+int measurePins[NUM_MEASURES] = {A3, A2, A1, A0}; //remember to update if you change the number of measures or pin order
 int scoreHits[NUM_MEASURES] = {0};            //this is the number of times each detector has detected a coin
 
 #define BUFFER_SIZE 5 //when detecting the coins we use the sum of the last N elements (effectively same as average) to get rid of some noise
@@ -26,6 +19,9 @@ unsigned long lastDetection = 0; //This tracks the moment when we registered a h
 
 unsigned long lastShot = 0; //This tracks the moment when we registered a shot last time.
 #define RELOAD_TIME 1000 //time between shooting and reloading
+
+#define SHOOT_PIN 8 //pins for using the relay
+#define RELOAD_PIN 9
 
 void calibrate() //for calibrating the coin detectors
 {
@@ -96,8 +92,18 @@ void measure() //Controls the coin detectors to find out whether they have detec
 //shoot a coin into the pajatso
 void shoot()
 {
+  if (millis() - lastShot<4*RELOAD_TIME)
+  {
+    digitalWrite(SHOOT_PIN,HIGH);
+    digitalWrite(RELOAD_PIN,HIGH);
+    delay(1000);
+  }
+  
   lastShot = millis();
-  digitalWrite(LED_BUILTIN, HIGH); //TODO placeholder
+  digitalWrite(LED_BUILTIN, HIGH); //Indicator
+  digitalWrite(SHOOT_PIN,LOW);//set the relay to shoot
+  digitalWrite(RELOAD_PIN,HIGH);
+
 }
 
 //prepare the mechanical parts for the next shot
@@ -105,7 +111,18 @@ void reload()
 {
   if (millis() - lastShot > RELOAD_TIME)
   {
-    if (millis() - lastDetection > DETECTION_TIME) //TODO placeholder
+    if (millis() - lastShot > 3*RELOAD_TIME|| millis() - lastShot < 2*RELOAD_TIME)//if enough time for reloading  has passed, don't send current to the motor
+    {
+      digitalWrite(SHOOT_PIN,HIGH);
+      digitalWrite(RELOAD_PIN,HIGH);
+    }else//if enough time for shooting has passed, reload
+    {
+      digitalWrite(SHOOT_PIN,HIGH);
+      digitalWrite(RELOAD_PIN,LOW);
+    }
+    
+    
+    if (millis() - lastDetection > DETECTION_TIME) //indicator
     {
       digitalWrite(LED_BUILTIN, LOW);
     }
@@ -141,10 +158,10 @@ void instructions() //read instructions from serial and react accordingly
 void setup()
 {
   delay(3000);                                                     //this might be safer in some way
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS); //initialize the array of programmable leds
-  FastLED.setBrightness(BRIGHTNESS);                               //set the brighness level for the programmable leds
   Serial.begin(9600);                                              //default communication rate of the Bluetooth module
   pinMode(LED_BUILTIN, OUTPUT);                                    //for testing with the onboard led
+  pinMode(RELOAD_PIN, OUTPUT);
+  pinMode(SHOOT_PIN, OUTPUT);
   calibrate();                                                     //calibrate the detectors
 }
 
@@ -154,30 +171,3 @@ void loop()
   measure();
   reload();
 }
-
-//the following is for reading commands via bluetooth
-/*
-int state = 0;
-void setup() {
-  
-  pinMode(LED_BUILTIN,OUTPUT);
-  Serial.begin(9600); // Default communication rate of the Bluetooth module
-}
-void loop() {
-  if(Serial.available() > 0){ // Checks whether data is comming from the serial port
-    state = Serial.read(); // Reads the data from the serial port
- }
- if (state == '0') {
-   // Turn LED OFF
-   digitalWrite(LED_BUILTIN,LOW);
-  Serial.println("LED: OFF"); // Send back, to the phone, the String "LED: ON"
-
-  state = 0;
- }
- else if (state == '1') {
-  digitalWrite(LED_BUILTIN,HIGH);
-  Serial.println("LED: ON");
-  state = 0;
- } 
- 
-}*/
