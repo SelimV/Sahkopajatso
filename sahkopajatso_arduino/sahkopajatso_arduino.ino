@@ -1,9 +1,8 @@
-#include <stdio.h>             //for constructing strings
+#include <stdio.h> //for constructing strings
 
-
-#define NUM_MEASURES 4                        //number of coin detectors
+#define NUM_MEASURES 4                            //number of coin detectors
 int measurePins[NUM_MEASURES] = {A3, A2, A1, A0}; //remember to update if you change the number of measures or pin order
-int scoreHits[NUM_MEASURES] = {0};            //this is the number of times each detector has detected a coin
+int scoreHits[NUM_MEASURES] = {0};                //this is the number of times each detector has detected a coin
 
 #define BUFFER_SIZE 5 //when detecting the coins we use the sum of the last N elements (effectively same as average) to get rid of some noise
 int roller = 0;       //tells which value in the sum is to be updated
@@ -18,7 +17,7 @@ int cumulativeValues[NUM_MEASURES] = {0}; //These are the sums of the values in 
 unsigned long lastDetection = 0; //This tracks the moment when we registered a hit last time. Since this is in milliseconds, it is important to use longs, and still there will be an overflow in 50 days.
 
 unsigned long lastShot = 0; //This tracks the moment when we registered a shot last time.
-#define RELOAD_TIME 1000 //time between shooting and reloading
+#define RELOAD_TIME 1000    //time between shooting and reloading
 
 #define SHOOT_PIN 8 //pins for using the relay
 #define RELOAD_PIN 9
@@ -88,22 +87,20 @@ void measure() //Controls the coin detectors to find out whether they have detec
   roller = (roller + 1) % BUFFER_SIZE; //update the index of the oldest element in the buffer. Thsi loops over buffer size
 }
 
-
 //shoot a coin into the pajatso
 void shoot()
 {
-  if (millis() - lastShot<4*RELOAD_TIME)
+  if (millis() - lastShot < 4 * RELOAD_TIME)
   {
-    digitalWrite(SHOOT_PIN,HIGH);
-    digitalWrite(RELOAD_PIN,HIGH);
+    digitalWrite(SHOOT_PIN, HIGH);
+    digitalWrite(RELOAD_PIN, HIGH);
     delay(1000);
   }
-  
+
   lastShot = millis();
   digitalWrite(LED_BUILTIN, HIGH); //Indicator
-  digitalWrite(SHOOT_PIN,LOW);//set the relay to shoot
-  digitalWrite(RELOAD_PIN,HIGH);
-
+  digitalWrite(SHOOT_PIN, LOW);    //set the relay to shoot
+  digitalWrite(RELOAD_PIN, HIGH);
 }
 
 //prepare the mechanical parts for the next shot
@@ -111,17 +108,17 @@ void reload()
 {
   if (millis() - lastShot > RELOAD_TIME)
   {
-    if (millis() - lastShot > 3*RELOAD_TIME|| millis() - lastShot < 2*RELOAD_TIME)//if enough time for reloading  has passed, don't send current to the motor
+    if (millis() - lastShot > 3 * RELOAD_TIME || millis() - lastShot < 2 * RELOAD_TIME) //if enough time for reloading  has passed, don't send current to the motor
     {
-      digitalWrite(SHOOT_PIN,HIGH);
-      digitalWrite(RELOAD_PIN,HIGH);
-    }else//if enough time for shooting has passed, reload
-    {
-      digitalWrite(SHOOT_PIN,HIGH);
-      digitalWrite(RELOAD_PIN,LOW);
+      digitalWrite(SHOOT_PIN, HIGH);
+      digitalWrite(RELOAD_PIN, HIGH);
     }
-    
-    
+    else //if enough time for shooting has passed, reload
+    {
+      digitalWrite(SHOOT_PIN, HIGH);
+      digitalWrite(RELOAD_PIN, LOW);
+    }
+
     if (millis() - lastDetection > DETECTION_TIME) //indicator
     {
       digitalWrite(LED_BUILTIN, LOW);
@@ -157,12 +154,12 @@ void instructions() //read instructions from serial and react accordingly
 
 void setup()
 {
-  delay(3000);                                                     //this might be safer in some way
-  Serial.begin(9600);                                              //default communication rate of the Bluetooth module
-  pinMode(LED_BUILTIN, OUTPUT);                                    //for testing with the onboard led
+  delay(3000);                  //this might be safer in some way
+  Serial.begin(9600);           //default communication rate of the Bluetooth module
+  pinMode(LED_BUILTIN, OUTPUT); //for testing with the onboard led
   pinMode(RELOAD_PIN, OUTPUT);
   pinMode(SHOOT_PIN, OUTPUT);
-  calibrate();                                                     //calibrate the detectors
+  calibrate(); //calibrate the detectors
 }
 
 void loop()
